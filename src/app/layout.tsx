@@ -9,8 +9,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "RapidResponse EMS Driver Dashboard",
+  title: "LifeLink Driver Dashboard",
   description: "Real-time emergency response system for ambulance drivers.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

@@ -228,11 +228,12 @@ export default function DashboardPage() {
     <div className="flex flex-col h-screen bg-[#0d1b2a] text-white font-sans overflow-hidden">
       {/* HEADER */}
       <header className="h-[60px] border-b border-white/5 flex items-center justify-between px-4 lg:px-6 bg-[#0d1b2a] shrink-0 z-50">
-        <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
+        <div className="flex items-center gap-2 tracking-tighter">
           <Activity className="text-[#00ffcc]" size={24} />
-          <span className="lg:block hidden">LIFE</span>
-          <span className="lg:block hidden text-muted-foreground font-normal">LINK</span>
-          <span className="lg:hidden block text-sm tracking-widest uppercase">LIFELINK</span>
+          <div className="flex items-center uppercase">
+            <span className="text-xl font-black text-white">Life</span>
+            <span className="text-xl font-bold text-[#8b9bb8] ml-1.5">Link</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-4 lg:gap-6">

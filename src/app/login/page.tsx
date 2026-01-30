@@ -15,7 +15,8 @@ import {
     Navigation,
     Activity as FleetSyncIcon,
     ShieldCheck,
-    ShieldAlert
+    ShieldAlert,
+    Ambulance
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,11 +62,17 @@ export default function LoginPage() {
                 {/* LEFT SECTION (Branding & Features) */}
                 <section className="lg:w-[40%] p-8 lg:p-16 flex flex-col justify-between bg-[#0f1b2e]/30 border-b lg:border-b-0 lg:border-r border-[#2a3f5f]">
                     <div className="space-y-12">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#00ffcc] rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(0,255,204,0.4)]">
-                                <Activity className="text-[#0d1b2a]" size={24} />
+                        <div className="flex items-center gap-4">
+                            <div className="text-[#00ffcc] drop-shadow-[0_0_15px_rgba(0,255,204,0.3)]">
+                                <Activity size={48} strokeWidth={2.5} />
                             </div>
-                            <span className="text-2xl font-bold tracking-tight uppercase">LifeLink</span>
+                            <div className="flex flex-col -space-y-1">
+                                <div className="flex items-center uppercase leading-none">
+                                    <span className="text-3xl font-black tracking-tight">Life</span>
+                                    <span className="text-3xl font-black tracking-tight ml-1.5 text-white/90">Link</span>
+                                </div>
+                                <span className="text-[10px] font-bold text-[#00ffcc] tracking-[0.2em] uppercase">Responder Network</span>
+                            </div>
                         </div>
 
                         <div className="space-y-6">
@@ -77,7 +84,7 @@ export default function LoginPage() {
                                 Driver <br /> <span className="text-[#00ffcc]">Log In</span>
                             </h1>
                             <p className="text-[#8b9bb8] text-lg leading-relaxed max-w-md">
-                                Access your active unit, receive real-time navigation updates, and sync with the RapidResponse network.
+                                Access your active unit, receive real-time navigation updates, and sync with the LifeLink network.
                             </p>
                         </div>
 
