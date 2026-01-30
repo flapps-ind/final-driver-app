@@ -3,38 +3,41 @@
 @plugin "tailwindcss-animate";
 
 :root {
-  --background: #1a1f2e;
+  --background: #1a2332;
   --foreground: #ffffff;
-  
-  --card: #252b3b;
+
+  --card: #1e2936;
   --card-foreground: #ffffff;
-  
-  --popover: #252b3b;
+
+  --popover: #1e2936;
   --popover-foreground: #ffffff;
-  
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  
-  --secondary: #252b3b;
+
+  --primary: #00d9b5;
+  --primary-foreground: #1a2332;
+
+  --secondary: #2d3548;
   --secondary-foreground: #ffffff;
-  
+
   --muted: #2d3548;
-  --muted-foreground: #8b92a7;
-  
-  --accent: #252b3b;
+  --muted-foreground: #8b92a8;
+
+  --accent: #00d9b5;
   --accent-foreground: #ffffff;
-  
-  --destructive: #ef4444;
+
+  --destructive: #ff3b30;
   --destructive-foreground: #ffffff;
-  
-  --success: #3dd68c;
+
+  --success: #00d97e;
   --success-foreground: #ffffff;
-  
+
+  --warning: #ff9500;
+
   --border: #2d3548;
   --input: #2d3548;
-  --ring: #2563eb;
-  
-  --radius: 0.5rem;
+  --ring: #00d9b5;
+
+  --sidebar: #1e2936;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -59,15 +62,32 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  
+
   --font-inter: var(--font-inter);
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2d3548;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3d475c;
 }

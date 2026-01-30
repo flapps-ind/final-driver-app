@@ -38,42 +38,50 @@ const AmbulanceIcon = L.divIcon({
   className: "",
   html: `
     <div style="
-      width:32px;
-      height:32px;
-      background:#22c55e;
+      width:24px;
+      height:24px;
+      background:#00d9b5;
       border:2px solid white;
       border-radius:50%;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 10px rgba(0,0,0,0.4);
+      box-shadow:0 0 15px rgba(0,217,181,0.4);
     ">
-      🚑
+      <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
     </div>
   `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
 const DestinationIcon = L.divIcon({
   className: "",
   html: `
     <div style="
-      width:32px;
-      height:32px;
-      background:#ef4444;
+      width:24px;
+      height:24px;
+      background:#ff3b30;
       border:2px solid white;
       border-radius:50%;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 10px rgba(0,0,0,0.4);
+      box-shadow:0 0 20px rgba(255,59,48,0.6);
+      animation: pulse 2s infinite;
     ">
-      📍
+      <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
     </div>
+    <style>
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+        70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+      }
+    </style>
   `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
 });
 
 /* -------------------------------------------------------------------------- */
@@ -154,9 +162,10 @@ const MapComponent = ({
         <Polyline
           positions={routeCoords}
           pathOptions={{
-            color: "#3dd68c",
-            weight: 4,
-            opacity: 0.85,
+            color: "#00d9b5",
+            weight: 5,
+            opacity: 0.6,
+            lineJoin: "round",
           }}
         />
       )}
