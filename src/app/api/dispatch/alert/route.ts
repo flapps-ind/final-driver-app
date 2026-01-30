@@ -1,76 +1,80 @@
-"use client";
+import { NextResponse } from "next/server";
 
-import { useEffect, useState } from "react";
-
-type EmergencyLocation = {
-  latitude: number;
-  longitude: number;
-  updated_at: string;
+/**
+ * Temporary in-memory storage
+ * (OK for hackathon, replace with DB later)
+ */
+let emergencyLocation = {
+  latitude: 0,
+  longitude: 0,
+  updated_at: new Date().toISOString(),
 };
 
-export default function DispatchAlertsPage() {
-  const [location, setLocation] = useState<EmergencyLocation | null>(null);
-  const [loading, setLoading] = useState(true);
+/**
+ * ✅ Allow ONLY LifeLink frontend
+ */
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "https://lifelink-kappa-red.vercel.app",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
-  useEffect(() => {
-    const fetchEmergency = async () => {
-      try {
-        const res = await fetch("http://localhost:3000/api/emergency", {
-          cache: "no-store",
-        });
+/**
+ * Preflight request (required for browsers)
+ */
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
 
-        const data = await res.json();
-        setLocation(data.location);
-      } catch (err) {
-        console.error("Failed to fetch emergency location", err);
-      } finally {
-        setLoading(false);
-      }
+/**
+ * Drivers poll this endpoint
+ */
+export async function GET() {
+  return NextResponse.json(
+    { location: emergencyLocation },
+    { headers: corsHeaders }
+  );
+}
+
+/**
+ * LifeLink SOS app sends location here
+ */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+
+    const { latitude, longitude } = body;
+
+    if (
+      typeof latitude !== "number" ||
+      typeof longitude !== "number"
+    ) {
+      return NextResponse.json(
+        { error: "latitude and longitude must be numbers" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    emergencyLocation = {
+      latitude,
+      longitude,
+      updated_at: new Date().toISOString(),
     };
 
-    // Fetch immediately
-    fetchEmergency();
-
-    // Poll every 5 seconds
-    const interval = setInterval(fetchEmergency, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>Loading emergency alerts…</h2>
-      </div>
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Emergency location received",
+      },
+      { headers: corsHeaders }
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400, headers: corsHeaders }
     );
   }
-
-  if (!location) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h2>No active emergencies</h2>
-        <p>Waiting for SOS signal…</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: 24 }}>
-      <h1>🚨 Active Emergency Alert</h1>
-
-      <div
-        style={{
-          marginTop: 16,
-          padding: 16,
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          maxWidth: 400,
-        }}
-      >
-        <p><strong>Status:</strong> Active</p>
-        <p><strong>Latitude:</strong> {location.latitude}</p>
-        <p><strong>Longitude:</strong> {location.longitude}</p>
-        <p><strong>Last Updated:</strong> {new Date(location.updated_at).toLocaleString()}</p>
-      </div>
-    </div>
-  );
 }
