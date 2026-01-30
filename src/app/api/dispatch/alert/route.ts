@@ -1,38 +1,76 @@
-import { NextResponse } from 'next/server';
+"use client";
 
-export async function POST(request: Request) {
-    try {
-        const body = await request.json();
+import { useEffect, useState } from "react";
 
-        // Validate request body
-        if (!body.emergency_id || !body.location) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-        }
+type EmergencyLocation = {
+  latitude: number;
+  longitude: number;
+  updated_at: string;
+};
 
-        // In a real app, this would:
-        // 1. Query the database for available drivers near body.location
-        // 2. Calculate distances using a routing engine
-        // 3. Select the best driver
-        // 4. Create a dispatch record
-        // 5. Send a WebSocket/Push notification to the driver
+export default function DispatchAlertsPage() {
+  const [location, setLocation] = useState<EmergencyLocation | null>(null);
+  const [loading, setLoading] = useState(true);
 
-        // Mock Response
-        const mockResponse = {
-            status: "dispatched",
-            driver_id: "DRV-402", // This would be dynamic
-            driver_unit: "AMB-204-NYC",
-            eta: "04:32",
-            distance: "1.2 mi",
-            acknowledged_at: new Date().toISOString()
-        };
+  useEffect(() => {
+    const fetchEmergency = async () => {
+      try {
+        const res = await fetch("http://localhost:3000/api/emergency", {
+          cache: "no-store",
+        });
 
-        // Simulate processing delay
-        // await new Promise(resolve => setTimeout(resolve, 500));
+        const data = await res.json();
+        setLocation(data.location);
+      } catch (err) {
+        console.error("Failed to fetch emergency location", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        return NextResponse.json(mockResponse);
+    // Fetch immediately
+    fetchEmergency();
 
-    } catch (error) {
-        console.error('Dispatch API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
+    // Poll every 5 seconds
+    const interval = setInterval(fetchEmergency, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>Loading emergency alerts…</h2>
+      </div>
+    );
+  }
+
+  if (!location) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2>No active emergencies</h2>
+        <p>Waiting for SOS signal…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>🚨 Active Emergency Alert</h1>
+
+      <div
+        style={{
+          marginTop: 16,
+          padding: 16,
+          border: "1px solid #ddd",
+          borderRadius: 8,
+          maxWidth: 400,
+        }}
+      >
+        <p><strong>Status:</strong> Active</p>
+        <p><strong>Latitude:</strong> {location.latitude}</p>
+        <p><strong>Longitude:</strong> {location.longitude}</p>
+        <p><strong>Last Updated:</strong> {new Date(location.updated_at).toLocaleString()}</p>
+      </div>
+    </div>
+  );
 }
