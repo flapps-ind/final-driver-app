@@ -4,18 +4,21 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import {
   Bell,
-  MapPin,
-  Navigation,
   Power,
   Shield,
   AlertTriangle,
   XCircle,
+  Phone,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import useDriverLocation from "@/hooks/useDriverLocation";
 
-// Disable SSR for map
+/* -------------------------------------------------------------------------- */
+/*                             MAP (NO SSR)                                   */
+/* -------------------------------------------------------------------------- */
+
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
   loading: () => (
@@ -24,6 +27,10 @@ const Map = dynamic(() => import("@/components/Map"), {
     </div>
   ),
 });
+
+/* -------------------------------------------------------------------------- */
+/*                                   TYPES                                    */
+/* -------------------------------------------------------------------------- */
 
 type DriverStatus = "OFF_DUTY" | "AVAILABLE" | "EN_ROUTE" | "AT_SCENE";
 
@@ -35,27 +42,32 @@ interface Emergency {
   arrivedAt?: string;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              DASHBOARD PAGE                                */
+/* -------------------------------------------------------------------------- */
+
 export default function DashboardPage() {
   const [status, setStatus] = useState<DriverStatus>("OFF_DUTY");
   const [emergency, setEmergency] = useState<Emergency | null>(null);
   const [showDispatchAlert, setShowDispatchAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Driver GPS
+  /* ---------------------------- DRIVER LOCATION ---------------------------- */
+
   const { currentLocation, isTracking } = useDriverLocation("DRV-101");
 
   const driverLocation: [number, number] | null = currentLocation
     ? [currentLocation.latitude, currentLocation.longitude]
     : null;
 
-  // Live emergency from backend
+  /* ---------------------------- LIVE EMERGENCY ----------------------------- */
+
   const [liveEmergency, setLiveEmergency] = useState<{
     latitude: number;
     longitude: number;
     updated_at: string;
   } | null>(null);
 
-  // Poll emergency API
   useEffect(() => {
     const fetchEmergency = async () => {
       try {
@@ -74,7 +86,8 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Show popup when available + emergency exists
+  /* -------------------------- DISPATCH POPUP LOGIC -------------------------- */
+
   useEffect(() => {
     if (status === "AVAILABLE" && liveEmergency && !emergency) {
       setShowDispatchAlert(true);
@@ -94,7 +107,9 @@ export default function DashboardPage() {
 
     setEmergency({
       id: "EMG-LIVE-001",
-      address: `Emergency at ${liveEmergency.latitude.toFixed(4)}, ${liveEmergency.longitude.toFixed(4)}`,
+      address: `Emergency at ${liveEmergency.latitude.toFixed(
+        4
+      )}, ${liveEmergency.longitude.toFixed(4)}`,
       details: "Live SOS received. Proceed immediately.",
       coords: [liveEmergency.latitude, liveEmergency.longitude],
     });
@@ -143,12 +158,14 @@ export default function DashboardPage() {
       setLiveEmergency(null);
       setShowDispatchAlert(false);
       setStatus("AVAILABLE");
-
-      console.log("Emergency cleared");
     } catch {
       alert("Failed to clear emergency");
     }
   };
+
+  /* -------------------------------------------------------------------------- */
+  /*                                   RENDER                                   */
+  /* -------------------------------------------------------------------------- */
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
@@ -181,7 +198,6 @@ export default function DashboardPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT PANEL */}
         <aside className="w-[380px] border-r p-4 space-y-4">
-          {/* STATUS */}
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleToggleStatus("AVAILABLE")}
@@ -207,7 +223,6 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* EMERGENCY PANEL */}
           {emergency && (
             <div className="border rounded p-4 space-y-3">
               <h2 className="font-bold">{emergency.address}</h2>
@@ -232,9 +247,23 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={completeEmergency}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded font-bold"
+                    className="w-full bg-green-600 text-white py-3 rounded font-bold"
                   >
                     COMPLETE EMERGENCY
+                  </button>
+                  <button
+                    onClick={() => alert('Requesting backup...')}
+                    className="w-full bg-[#6366f1] hover:bg-[#4f46e5] text-white py-3 rounded font-bold mt-[12px] flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Users size={18} />
+                    CALL BACKUP
+                  </button>
+                  <button
+                    onClick={() => window.location.href = 'tel:911'}
+                    className="w-full bg-[#4a9eff] hover:bg-[#3d8bee] text-white py-3 rounded font-bold mt-[12px] flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Phone size={18} />
+                    CALL HOSPITAL
                   </button>
                 </>
               )}
@@ -242,16 +271,21 @@ export default function DashboardPage() {
           )}
         </aside>
 
-        {/* MAP */}
-        <main className="flex-1 relative">
-          <Map
-            driverLocation={driverLocation}
-            destination={emergency?.coords || null}
-          />
+        {/* MAP + OVERLAYS */}
+        <main className="flex-1 relative overflow-hidden">
+          {/* MAP LAYER */}
+          <div className="absolute inset-0 z-0">
+            {driverLocation && (
+              <Map
+                driverLocation={driverLocation}
+                destination={emergency?.coords || null}
+              />
+            )}
+          </div>
 
-          {/* DISPATCH POPUP */}
+          {/* DISPATCH POPUP (FIXED ABOVE MAP) */}
           {showDispatchAlert && liveEmergency && (
-            <div className="absolute top-4 right-4 w-80 bg-primary text-white p-4 rounded-xl shadow-xl">
+            <div className="fixed top-20 right-6 z-[1000] w-80 bg-primary text-white p-4 rounded-xl shadow-xl pointer-events-auto">
               <div className="flex justify-between mb-2">
                 <span className="font-bold text-xs uppercase">
                   New Dispatch
@@ -285,7 +319,7 @@ export default function DashboardPage() {
           )}
 
           {/* HAZARD BUTTON */}
-          <button className="absolute bottom-6 right-6 w-12 h-12 bg-destructive text-white rounded-full flex items-center justify-center">
+          <button className="fixed bottom-6 right-6 z-[1000] w-12 h-12 bg-destructive text-white rounded-full flex items-center justify-center">
             <AlertTriangle />
           </button>
         </main>
