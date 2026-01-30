@@ -1,33 +1,32 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
     ArrowRight,
+    User,
     Mail,
     Lock,
     Eye,
     EyeOff,
-    ShieldCheck,
-    User,
     Activity,
-    Shield,
-    Moon,
+    ShieldCheck,
+    ShieldAlert,
     Sun,
     LayoutGrid,
-    CreditCard,
-    CheckCircle2
+    CheckCircle2,
+    Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
-        full_name: '',
+        firstName: '',
+        lastName: '',
         email: '',
-        unit_id: '',
-        certification_number: '',
+        unitId: '',
         password: ''
     });
     const [showPassword, setShowPassword] = useState(false);
@@ -35,160 +34,219 @@ export default function RegisterPage() {
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
 
+    const [unitIdValid, setUnitIdValid] = useState<boolean | null>(null);
+    const [unitIdTouched, setUnitIdTouched] = useState(false);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+    const certificationPattern = /^EMS-\d{4}-\d{4}$/;
+
+    useEffect(() => {
+        if (!unitIdTouched) return;
+
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+        const isCurrentlyValid = certificationPattern.test(formData.unitId);
+
+        // IMMEDIATELY clear error if valid, satisfies prompt: 
+        // "Clear/hide the error banner immediately when the certification input matches the valid format"
+        if (isCurrentlyValid) {
+            setUnitIdValid(true);
+            if (error.includes("Certification")) {
+                setError("");
+            }
+            return;
+        }
+
+        if (formData.unitId === "") {
+            setUnitIdValid(null);
+            setError("");
+            return;
+        }
+
+        // If invalid, clear valid state
+        setUnitIdValid(null);
+
+        // Debounce only for SHOWING the error message
+        debounceTimer.current = setTimeout(() => {
+            setUnitIdValid(false);
+            setError("Certification number must be in format: EMS-XXXX-XXXX (e.g., EMS-1292-1232)");
+        }, 500);
+
+        return () => {
+            if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        };
+    }, [formData.unitId, unitIdTouched, error]);
+
     const handleRegister = async (e: FormEvent) => {
         e.preventDefault();
+
+        if (!certificationPattern.test(formData.unitId)) {
+            setUnitIdValid(false);
+            setError("Certification number must be in format: EMS-XXXX-XXXX (e.g., EMS-1292-1232)");
+            return;
+        }
+
         setIsLoading(true);
         setError("");
-        setSuccess(false);
 
         try {
             const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    full_name: `${formData.firstName} ${formData.lastName}`,
+                    email: formData.email,
+                    // Map the UI field to both fields the server requires to satisfy internal constraints
+                    unit_id: `AMB-${formData.unitId.replace(/[^0-9]/g, '').slice(0, 3)}-NYC`,
+                    certification_number: formData.unitId,
+                    password: formData.password,
+                    certification_level: "DRIVER"
+                })
             });
 
-            const data = await res.json();
-
             if (!res.ok) {
-                setError(data.message || "Registration failed. Please check your details.");
-                return;
+                const data = await res.json();
+                throw new Error(data.message || "Registration failed");
             }
 
             setSuccess(true);
-            setTimeout(() => {
-                router.push("/login");
-            }, 2000);
-        } catch (err) {
-            setError("Something went wrong. Please try again.");
-        } finally {
+            setTimeout(() => router.push("/login"), 2000);
+        } catch (err: any) {
+            setError(err.message || "Failed to create account.");
             setIsLoading(false);
         }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+
+        if (name === 'unitId') {
+            setUnitIdTouched(true);
+            // Clear error/valid state while typing to satisfy "Clear error when user starts typing again"
+            if (error && error.includes("Certification")) {
+                setError("");
+            }
+            setUnitIdValid(null);
+        }
+    };
+
+    const handleUnitIdBlur = () => {
+        setUnitIdTouched(true);
+        if (!certificationPattern.test(formData.unitId)) {
+            setUnitIdValid(false);
+            setError("Certification number must be in format: EMS-XXXX-XXXX (e.g., EMS-1292-1232)");
+        }
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-[#0a1628] bg-gradient-to-br from-[#0a1628] to-[#152238] p-4 font-sans text-white border-[10px] border-[#0a1628]">
-            <div className="w-full max-w-6xl flex flex-col lg:flex-row bg-[#1e2d3d]/50 backdrop-blur-xl rounded-3xl overflow-hidden border border-[#2a3f5f] shadow-2xl">
+        <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1628] to-[#152238] p-4 lg:p-12 font-sans selection:bg-[#00ffcc]/30 text-white">
+            <div className="w-full max-w-7xl h-full lg:h-[850px] flex flex-col lg:flex-row bg-[#1e2d3d]/40 backdrop-blur-xl rounded-3xl overflow-hidden border border-[#2a3f5f] shadow-2xl">
 
-                {/* LEFT SECTION: BRANDING & FEATURES */}
-                <section className="lg:w-[40%] p-10 lg:p-16 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-[#2a3f5f] bg-[#0f1b2e]/30">
+                {/* LEFT SECTION (Branding & Features) */}
+                <section className="lg:w-[40%] p-8 lg:p-16 flex flex-col justify-between bg-[#0f1b2e]/30 border-b lg:border-b-0 lg:border-r border-[#2a3f5f]">
                     <div className="space-y-12">
-                        {/* Logo */}
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-[#00ffcc] rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(0,255,204,0.4)]">
-                                <div className="relative w-6 h-6 border-2 border-white flex items-center justify-center">
-                                    <div className="absolute w-4 h-0.5 bg-white"></div>
-                                    <div className="absolute w-0.5 h-4 bg-white"></div>
-                                </div>
+                            <div className="w-10 h-10 bg-[#00ffcc] rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(0,255,204,0.4)]">
+                                <Activity className="text-[#0d1b2a]" size={24} />
                             </div>
-                            <span className="text-2xl font-bold tracking-tight">LifeLink</span>
+                            <span className="text-2xl font-bold tracking-tight uppercase">LifeLink</span>
                         </div>
 
-                        {/* Content */}
                         <div className="space-y-6">
                             <div className="inline-flex items-center gap-2 bg-[#00ffcc]/10 px-3 py-1 rounded-full border border-[#00ffcc]/20">
                                 <div className="w-2 h-2 rounded-full bg-[#00ffcc] animate-pulse"></div>
-                                <span className="text-[10px] font-bold text-[#00ffcc] tracking-widest uppercase">New Account</span>
+                                <span className="text-[10px] font-bold text-[#00ffcc] tracking-wider uppercase">New Account</span>
                             </div>
-                            <h1 className="text-5xl font-bold leading-tight">
-                                Responder <span className="text-[#00ffcc]">Registration</span>
+                            <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
+                                Responder <br /> <span className="text-[#00ffcc]">Registration</span>
                             </h1>
-                            <p className="text-[#8b9bb8] text-lg leading-relaxed">
+                            <p className="text-[#8b9bb8] text-lg leading-relaxed max-w-md">
                                 Join the elite emergency response network. Register your credentials to start receiving priority dispatch alerts.
                             </p>
                         </div>
 
                         {/* Feature Cards */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#0f1b2e]/50 p-4 rounded-xl border border-[#2a3f5f] group hover:border-[#00ffcc]/50 transition-all cursor-default">
-                                <ShieldCheck className="text-[#00ffcc] mb-3 transition-transform group-hover:scale-110" size={24} />
-                                <h3 className="font-bold text-sm mb-1">Certified Units</h3>
-                                <p className="text-[10px] text-[#8b9bb8]">Verified medical credentials only</p>
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <div className="bg-[#1e2d3d]/50 p-4 rounded-2xl border border-white/5 hover:border-[#00ffcc]/20 transition-all group">
+                                <ShieldCheck className="text-[#00ffcc] mb-3 group-hover:scale-110 transition-transform" size={24} />
+                                <p className="text-sm font-bold mb-1">Certified Units</p>
+                                <p className="text-[10px] text-[#8b9bb8] leading-tight">Verified medical credentials only</p>
                             </div>
-                            <div className="bg-[#0f1b2e]/50 p-4 rounded-xl border border-[#2a3f5f] group hover:border-[#00ffcc]/50 transition-all cursor-default">
-                                <Lock className="text-[#00ffcc] mb-3 transition-transform group-hover:scale-110" size={24} />
-                                <h3 className="font-bold text-sm mb-1">Secure Data</h3>
-                                <p className="text-[10px] text-[#8b9bb8]">End-to-end encrypted dispatch</p>
+                            <div className="bg-[#1e2d3d]/50 p-4 rounded-2xl border border-white/5 hover:border-[#00ffcc]/20 transition-all group">
+                                <Lock className="text-[#00ffcc] mb-3 group-hover:scale-110 transition-transform" size={24} />
+                                <p className="text-sm font-bold mb-1">Secure Data</p>
+                                <p className="text-[10px] text-[#8b9bb8] leading-tight">End-to-end encrypted dispatch</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-12 lg:mt-0 flex items-center gap-2 text-[10px] text-[#8b9bb8] font-mono tracking-widest uppercase">
-                        <Lock size={12} />
-                        Encrypted Registration
+                    <div className="hidden lg:flex items-center gap-2 text-[10px] text-[#8b9bb8] font-mono tracking-widest uppercase mt-12">
+                        <ShieldAlert size={12} />
+                        Secure System Active
                     </div>
                 </section>
 
-                {/* RIGHT SECTION: REGISTRATION FORM */}
-                <section className="flex-1 p-10 lg:p-12 flex items-center justify-center bg-transparent">
-                    <div className="w-full max-w-md space-y-8">
+                {/* RIGHT SECTION (Registration Form Card) */}
+                <section className="flex-1 flex items-center justify-center p-8 lg:p-16 relative overflow-y-auto custom-scrollbar">
+                    <div className="w-full max-w-md space-y-8 py-8 lg:py-0">
                         <div className="space-y-2">
-                            <h2 className="text-2xl font-bold">Create Responder Profile</h2>
-                            <p className="text-[#8b9bb8]">Fill in your official credentials</p>
+                            <h2 className="text-3xl font-bold">Response Terminal</h2>
+                            <p className="text-[#8b9bb8] text-sm font-medium">Initialize your responder profile below.</p>
                         </div>
 
                         {error && (
-                            <div className="bg-[#ff3b30]/10 border border-[#ff3b30]/20 text-[#ff3b30] p-4 rounded-xl text-sm flex items-center gap-3 animate-shake">
-                                <div className="w-1.5 h-1.5 rounded-full bg-[#ff3b30]"></div>
+                            <div className="bg-[#ff5252]/10 border border-[#ff5252]/20 text-[#ff5252] p-4 rounded-xl text-sm animate-shake">
                                 {error}
                             </div>
                         )}
 
                         {success && (
                             <div className="bg-[#00ffcc]/10 border border-[#00ffcc]/20 text-[#00ffcc] p-4 rounded-xl text-sm flex items-center gap-3">
-                                <CheckCircle2 size={20} />
-                                Account created successfully! Redirecting to login...
+                                <CheckCircle2 size={18} />
+                                Account initialized. Transferring to login...
                             </div>
                         )}
 
-                        <form onSubmit={handleRegister} className="space-y-4">
+                        <form onSubmit={handleRegister} className="space-y-5">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-[#8b9bb8] uppercase tracking-wider ml-1">Full Name</label>
+                                {/* First Name */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-[#8b9bb8] uppercase tracking-widest ml-1">First Name</label>
                                     <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors">
-                                            <User size={16} />
-                                        </div>
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors" size={18} />
                                         <input
-                                            name="full_name"
-                                            type="text"
+                                            name="firstName"
                                             required
-                                            value={formData.full_name}
+                                            value={formData.firstName}
                                             onChange={handleChange}
-                                            placeholder="Johnathan Doe"
-                                            className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:ring-1 focus:ring-[#00ffcc] focus:border-[#00ffcc] transition-all text-sm"
+                                            placeholder="John"
+                                            className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:border-[#00ffcc] transition-all"
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-[#8b9bb8] uppercase tracking-wider ml-1">Unit ID</label>
+                                {/* Last Name */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-[#8b9bb8] uppercase tracking-widest ml-1">Last Name</label>
                                     <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors">
-                                            <LayoutGrid size={16} />
-                                        </div>
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors" size={18} />
                                         <input
-                                            name="unit_id"
-                                            type="text"
+                                            name="lastName"
                                             required
-                                            value={formData.unit_id}
+                                            value={formData.lastName}
                                             onChange={handleChange}
-                                            placeholder="LL-9421"
-                                            className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:ring-1 focus:ring-[#00ffcc] focus:border-[#00ffcc] transition-all text-sm"
+                                            placeholder="Doe"
+                                            className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:border-[#00ffcc] transition-all"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-[#8b9bb8] uppercase tracking-wider ml-1">Email Address</label>
+                            {/* Email Address */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-[#8b9bb8] uppercase tracking-widest ml-1">Email Address</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors">
-                                        <Mail size={16} />
-                                    </div>
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors" size={18} />
                                     <input
                                         name="email"
                                         type="email"
@@ -196,81 +254,83 @@ export default function RegisterPage() {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="responder@lifelink.com"
-                                        className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:ring-1 focus:ring-[#00ffcc] focus:border-[#00ffcc] transition-all text-sm"
+                                        className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3.5 pl-12 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:border-[#00ffcc] transition-all"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-[#8b9bb8] uppercase tracking-wider ml-1">Certification Number</label>
+                            {/* Unit ID */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-[#8b9bb8] uppercase tracking-widest ml-1">Unit / Badge ID</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors">
-                                        <CreditCard size={16} />
-                                    </div>
+                                    <LayoutGrid className={cn(
+                                        "absolute left-4 top-1/2 -translate-y-1/2 transition-colors",
+                                        unitIdValid === true ? "text-[#00ffcc]" : unitIdValid === false ? "text-[#ff5252]" : "text-[#8b9bb8]"
+                                    )} size={18} />
                                     <input
-                                        name="certification_number"
-                                        type="text"
+                                        name="unitId"
                                         required
-                                        value={formData.certification_number}
+                                        value={formData.unitId}
                                         onChange={handleChange}
-                                        placeholder="EMS-XXXX-XXXX"
-                                        className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3 pl-11 pr-4 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:ring-1 focus:ring-[#00ffcc] focus:border-[#00ffcc] transition-all text-sm"
+                                        onBlur={handleUnitIdBlur}
+                                        placeholder="EMS-1292-1232"
+                                        className={cn(
+                                            "w-full bg-[#0f1b2e] border rounded-xl py-3.5 pl-12 pr-10 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none transition-all",
+                                            unitIdValid === true ? "border-[#00ffcc]" : unitIdValid === false ? "border-[#ff5252]" : "border-[#2a3f5f] focus:border-[#00ffcc]"
+                                        )}
                                     />
+                                    {unitIdValid === true && (
+                                        <Check className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00ffcc]" size={16} />
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-[#8b9bb8] uppercase tracking-wider ml-1">Password</label>
+                            {/* Password */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-[#8b9bb8] uppercase tracking-widest ml-1">Secure Password</label>
                                 <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors">
-                                        <Lock size={16} />
-                                    </div>
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] group-focus-within:text-[#00ffcc] transition-colors" size={18} />
                                     <input
                                         name="password"
                                         type={showPassword ? "text" : "password"}
                                         required
                                         value={formData.password}
                                         onChange={handleChange}
-                                        placeholder="Min 8 chars, 1 Uppercase"
-                                        className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3 pl-11 pr-12 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:ring-1 focus:ring-[#00ffcc] focus:border-[#00ffcc] transition-all text-sm"
+                                        placeholder="••••••••"
+                                        className="w-full bg-[#0f1b2e] border border-[#2a3f5f] rounded-xl py-3.5 pl-12 pr-12 text-white placeholder:text-[#8b9bb8]/30 focus:outline-none focus:border-[#00ffcc] transition-all"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] hover:text-white transition-colors"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8b9bb8] hover:text-[#00ffcc] transition-colors"
                                     >
-                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex items-start gap-3 pt-2">
-                                <input
-                                    type="checkbox"
-                                    id="terms"
-                                    required
-                                    className="w-4 h-4 mt-0.5 rounded bg-[#0f1b2e] border-[#2a3f5f] text-[#00ffcc] focus:ring-[#00ffcc] focus:ring-offset-0 focus:ring-offset-transparent outline-none cursor-pointer appearance-none checked:bg-[#00ffcc] checked:border-transparent relative after:content-['✓'] after:absolute after:hidden after:text-[10px] after:left-0.5 after:top-0 checked:after:block transition-all"
-                                />
-                                <label htmlFor="terms" className="text-xs text-[#8b9bb8] leading-relaxed select-none">
-                                    I agree to the <Link href="#" className="text-[#00ffcc] hover:underline">Terms of Service</Link> and confirm I am a certified first responder.
-                                </label>
+                            <div className="flex items-start gap-3 px-1 py-1">
+                                <input type="checkbox" required className="w-4 h-4 rounded border-[#2a3f5f] bg-[#0f1b2e] text-[#00ffcc] mt-0.5 cursor-pointer" />
+                                <p className="text-[11px] text-[#8b9bb8] leading-tight">
+                                    I agree to the <Link href="#" className="text-[#00ffcc] font-bold hover:underline">Terms of Service</Link> and confirm I am a certified first responder for the LifeLink Network.
+                                </p>
                             </div>
 
                             <button
                                 type="submit"
                                 disabled={isLoading || success}
-                                className="w-full bg-[#00ffcc] hover:bg-[#00e5b8] text-[#0a1628] font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(0,255,204,0.3)] disabled:opacity-50 disabled:cursor-not-allowed group mt-2"
+                                className="w-full bg-[#00ffcc] hover:bg-[#00e5b8] text-[#0d1b2a] font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] shadow-lg shadow-[#00ffcc]/20 disabled:opacity-50 group mt-4"
                             >
-                                <span>{isLoading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}</span>
-                                {!isLoading && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
+                                <span>{isLoading ? "PROVISIONING..." : success ? "ACCESS GRANTED" : "CREATE ACCOUNT"}</span>
+                                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                             </button>
 
-                            <div className="pt-4 space-y-4">
-                                <p className="text-center text-sm text-[#8b9bb8]">
+                            <div className="space-y-8 pt-2 text-center">
+                                <p className="text-sm text-[#8b9bb8]">
                                     Already have an account? <Link href="/login" className="text-[#00ffcc] font-bold hover:underline">Log into LifeLink</Link>
                                 </p>
 
-                                <div className="flex items-center justify-center gap-2 text-[10px] text-[#8b9bb8] font-bold tracking-widest uppercase">
+                                <div className="flex items-center justify-center gap-2 text-[10px] text-[#8b9bb8] font-bold tracking-widest uppercase opacity-40">
                                     <Lock size={12} />
                                     SECURE ENCRYPTED CONNECTION
                                 </div>
@@ -280,19 +340,24 @@ export default function RegisterPage() {
                 </section>
             </div>
 
-            {/* Theme Toggle Placeholder */}
-            <button className="fixed bottom-8 right-8 w-12 h-12 bg-[#1e2d3d] border border-[#2a3f5f] rounded-full flex items-center justify-center text-[#8b9bb8] hover:text-white transition-all shadow-xl hover:scale-110">
-                <Moon size={20} />
-            </button>
-
             <style jsx global>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
         }
         .animate-shake {
-          animation: shake 0.4s ease-in-out;
+          animation: shake 0.3s ease-in-out;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #2a3f5f;
+          border-radius: 10px;
         }
       `}</style>
         </main>

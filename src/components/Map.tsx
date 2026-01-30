@@ -40,16 +40,24 @@ const AmbulanceIcon = L.divIcon({
     <div style="
       width:24px;
       height:24px;
-      background:#00d9b5;
+      background:#00ffcc;
       border:2px solid white;
       border-radius:50%;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 15px rgba(0,217,181,0.4);
+      box-shadow:0 0 15px rgba(0,255,204,0.4);
+      animation: cyanPulse 2s infinite;
     ">
       <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
     </div>
+    <style>
+      @keyframes cyanPulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0.7); }
+        70% { box-shadow: 0 0 0 15px rgba(0, 255, 204, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0); }
+      }
+    </style>
   `,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
@@ -189,7 +197,7 @@ const MapComponent = ({
         <Polyline
           positions={routeCoords}
           pathOptions={{
-            color: "#00d9b5",
+            color: "#00ffcc",
             weight: 5,
             opacity: 0.6,
             lineJoin: "round",
