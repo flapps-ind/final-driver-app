@@ -91,3 +91,12 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #3d475c;
 }
+
+@keyframes loader {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.animate-loader {
+  animation: loader 15s linear infinite;
+}

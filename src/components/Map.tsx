@@ -34,28 +34,28 @@ L.Marker.prototype.options.icon = DefaultIcon;
 /*                                 CUSTOM ICONS                               */
 /* -------------------------------------------------------------------------- */
 
-const AmbulanceIcon = L.divIcon({
+const getEmergencyIcon = (color: string) => L.divIcon({
   className: "",
   html: `
     <div style="
       width:24px;
       height:24px;
-      background:#00ffcc;
+      background:${color};
       border:2px solid white;
       border-radius:50%;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 15px rgba(0,255,204,0.4);
-      animation: cyanPulse 2s infinite;
+      box-shadow:0 0 20px ${color}66;
+      animation: pulse 2s infinite;
     ">
       <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
     </div>
     <style>
-      @keyframes cyanPulse {
-        0% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0.7); }
-        70% { box-shadow: 0 0 0 15px rgba(0, 255, 204, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 255, 204, 0); }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 ${color}B3; }
+        70% { box-shadow: 0 0 0 15px ${color}00; }
+        100% { box-shadow: 0 0 0 0 ${color}00; }
       }
     </style>
   `,
@@ -63,34 +63,37 @@ const AmbulanceIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
-const DestinationIcon = L.divIcon({
+const AmbulanceIcon = L.divIcon({
   className: "",
   html: `
     <div style="
       width:24px;
       height:24px;
-      background:#ff3b30;
+      background:#00d9b8;
       border:2px solid white;
       border-radius:50%;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 20px rgba(255,59,48,0.6);
-      animation: pulse 2s infinite;
+      box-shadow:0 0 15px rgba(0,217,184,0.4);
+      animation: cyanPulse 2s infinite;
     ">
       <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
     </div>
     <style>
-      @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
-        70% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+      @keyframes cyanPulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 217, 184, 0.7); }
+        70% { box-shadow: 0 0 0 15px rgba(0, 217, 184, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 217, 184, 0); }
       }
     </style>
   `,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
 });
+
+const DestinationIconCyan = getEmergencyIcon("#00d9b8");
+const DestinationIconRed = getEmergencyIcon("#ff4757");
 
 const SearchIcon = L.divIcon({
   className: "",
@@ -120,6 +123,7 @@ const SearchIcon = L.divIcon({
 interface MapProps {
   driverLocation: [number, number];
   destination?: [number, number] | null;
+  isAccepted?: boolean;
   searchLocation?: [number, number] | null;
   routeCoords?: [number, number][];
 }
@@ -152,6 +156,7 @@ const RecenterMap = ({ coords }: { coords: [number, number] }) => {
 const MapComponent = ({
   driverLocation,
   destination,
+  isAccepted,
   searchLocation,
   routeCoords,
 }: MapProps) => {
@@ -180,7 +185,10 @@ const MapComponent = ({
 
       {/* Destination */}
       {destination && (
-        <Marker position={destination} icon={DestinationIcon}>
+        <Marker
+          position={destination}
+          icon={isAccepted ? DestinationIconRed : DestinationIconCyan}
+        >
           <Popup>Emergency Location</Popup>
         </Marker>
       )}

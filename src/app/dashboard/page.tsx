@@ -3,17 +3,15 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
-  Activity,
   Bell,
   Power,
-  MapPin,
-  XCircle,
-  Navigation,
-  CheckCircle2,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import useDriverLocation from "@/hooks/useDriverLocation";
+import Sidebar, { SidebarState } from "@/components/Sidebar";
+import DispatchNotification from "@/components/DispatchNotification";
 
 /* -------------------------------------------------------------------------- */
 /*                             MAP (NO SSR)                                   */
@@ -22,8 +20,11 @@ import useDriverLocation from "@/hooks/useDriverLocation";
 const Map = dynamic(() => import("@/components/Map"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center animate-pulse">
-      Initializing GPS…
+    <div className="w-full h-full flex items-center justify-center bg-[#0f172a] animate-pulse">
+      <div className="flex flex-col items-center gap-4">
+        <Activity className="text-[#00d9b8] animate-spin" size={32} />
+        <span className="text-[#8b92a5] text-sm font-bold tracking-widest uppercase">Initializing GPS…</span>
+      </div>
     </div>
   ),
 });
@@ -32,7 +33,7 @@ const Map = dynamic(() => import("@/components/Map"), {
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
 
-type DriverStatus = "OFF_DUTY" | "AVAILABLE" | "EN_ROUTE" | "AT_SCENE";
+type DriverStatus = "OFF_DUTY" | "AVAILABLE";
 
 interface LiveEmergency {
   latitude: number;
@@ -45,10 +46,10 @@ interface LiveEmergency {
 /* -------------------------------------------------------------------------- */
 
 export default function DashboardPage() {
-  const [status, setStatus] = useState<DriverStatus>("AVAILABLE");
+  const [appStatus, setAppStatus] = useState<DriverStatus>("AVAILABLE");
+  const [sidebarState, setSidebarState] = useState<SidebarState>("INITIAL");
+  const [showNotification, setShowNotification] = useState(false);
   const [liveEmergency, setLiveEmergency] = useState<LiveEmergency | null>(null);
-  const [accepted, setAccepted] = useState(false);
-  const [arrived, setArrived] = useState(false);
 
   /* ---------------------------- DRIVER LOCATION ---------------------------- */
 
@@ -56,18 +57,23 @@ export default function DashboardPage() {
 
   const driverLocation: [number, number] | null = currentLocation
     ? [currentLocation.latitude, currentLocation.longitude]
-    : null;
+    : [12.9716, 77.5946]; // Fallback for demo if needed
 
   /* -------------------------- POLL RECEIVER API --------------------------- */
 
   useEffect(() => {
     const fetchEmergency = async () => {
+      // For this task, we want to simulate the flow. 
+      // If we are in INITIAL state and not showing notification, we can trigger one.
+      // In a real app, this would come from the API.
       try {
-        const res = await fetch("/api/dispatch/alert", {
-          cache: "no-store",
-        });
+        const res = await fetch("/api/dispatch/alert", { cache: "no-store" });
         const data = await res.json();
-        setLiveEmergency(data.location ?? null);
+
+        if (data.location && sidebarState === "INITIAL" && !showNotification) {
+          setLiveEmergency(data.location);
+          setShowNotification(true);
+        }
       } catch (err) {
         console.error("Failed to fetch emergency");
       }
@@ -76,170 +82,110 @@ export default function DashboardPage() {
     fetchEmergency();
     const interval = setInterval(fetchEmergency, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [sidebarState, showNotification]);
+
+  /* ---------------------------- HANDLERS ---------------------------- */
+
+  const handleAccept = () => {
+    setShowNotification(false);
+    setSidebarState("ACTIVE");
+    // In a real app, we would also update the backend
+  };
+
+  const handleDecline = () => {
+    setShowNotification(false);
+    setLiveEmergency(null);
+  };
+
+  const handleMarkArrival = () => {
+    setSidebarState("ARRIVED");
+  };
+
+  const handleComplete = () => {
+    setSidebarState("INITIAL");
+    setLiveEmergency(null);
+  };
+
+  const handleBackup = () => console.log("Requesting backup...");
+  const handleHospital = () => console.log("Contacting hospital...");
 
   /* -------------------------------------------------------------------------- */
   /*                                   RENDER                                   */
   /* -------------------------------------------------------------------------- */
 
   return (
-    <div className="flex flex-col h-screen bg-[#0d1b2a] text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#1a2332] text-white overflow-hidden font-sans">
       {/* HEADER */}
-      <header className="h-[60px] border-b border-white/5 flex items-center justify-between px-4 bg-[#0d1b2a] shrink-0">
+      <header className="h-[64px] border-b border-white/5 flex items-center justify-between px-6 bg-[#1a2332] shrink-0 z-50">
         <div className="flex items-center gap-2">
-          <Activity className="text-[#00ffcc]" size={22} />
-          <span className="text-xl font-black">Life</span>
-          <span className="text-xl font-bold text-[#8b9bb8]">Link</span>
+          <div className="p-1.5 bg-[#00d9b8]/10 rounded-lg">
+            <Activity className="text-[#00d9b8]" size={20} />
+          </div>
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-xl font-black tracking-tighter">LIFE</span>
+            <span className="text-xl font-bold text-[#8b92a5] tracking-tighter">LINK</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-2 bg-[#00ffcc]/10 px-3 py-1 rounded-full">
+        <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-2 bg-[#00d9b8]/10 px-4 py-1.5 rounded-full border border-[#00d9b8]/20">
             <div
               className={cn(
-                "w-2 h-2 rounded-full animate-pulse",
-                isTracking ? "bg-[#00ffcc]" : "bg-gray-500"
+                "w-2 h-2 rounded-full",
+                isTracking ? "bg-[#00d9b8] animate-pulse" : "bg-gray-500"
               )}
             />
-            <span className="text-[10px] font-bold text-[#00ffcc]">
+            <span className="text-[10px] font-black text-[#00d9b8] uppercase tracking-wider">
               {isTracking ? "GPS ACTIVE" : "GPS OFF"}
             </span>
           </div>
 
-          <Bell size={18} />
-          <Link href="/">
-            <Power size={18} />
-          </Link>
+          <div className="flex items-center gap-4 text-[#8b92a5]">
+            <button className="p-2 hover:bg-white/5 rounded-full transition-colors relative">
+              <Bell size={18} />
+              <div className="absolute top-2 right-2 w-2 h-2 bg-[#ff4757] rounded-full border-2 border-[#1a2332]" />
+            </button>
+            <Link href="/" className="p-2 hover:bg-white/5 rounded-full transition-colors text-[#ff4757]">
+              <Power size={18} />
+            </Link>
+          </div>
         </div>
       </header>
 
       {/* BODY */}
       <div className="flex flex-1 overflow-hidden">
-        {/* SIDEBAR (DESKTOP) */}
-        <aside className="hidden lg:block w-[300px] bg-[#1e2936] border-r border-white/5 overflow-y-auto">
-          <div className="p-4 space-y-6">
-            <div>
-              <h3 className="text-[10px] font-bold uppercase text-[#8b9bb8] mb-2">
-                Status
-              </h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setStatus("AVAILABLE")}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg text-xs font-bold",
-                    status === "AVAILABLE"
-                      ? "bg-[#00ffcc] text-[#0d1b2a]"
-                      : "bg-white/5 text-[#8b9bb8]"
-                  )}
-                >
-                  AVAILABLE
-                </button>
-                <button
-                  onClick={() => setStatus("OFF_DUTY")}
-                  className={cn(
-                    "flex-1 py-2 rounded-lg text-xs font-bold",
-                    status === "OFF_DUTY"
-                      ? "bg-white/10 text-white"
-                      : "bg-white/5 text-[#8b9bb8]"
-                  )}
-                >
-                  OFF DUTY
-                </button>
-              </div>
-            </div>
+        {/* SIDEBAR */}
+        <Sidebar
+          state={sidebarState}
+          status={appStatus}
+          setStatus={setAppStatus}
+          onMarkArrival={handleMarkArrival}
+          onCompleteEmergency={handleComplete}
+          onBackup={handleBackup}
+          onHospital={handleHospital}
+        />
 
-            <div>
-              <h3 className="text-[10px] font-bold uppercase text-[#8b9bb8] mb-2">
-                Current Emergency
-              </h3>
-
-              {liveEmergency ? (
-                <div className="bg-[#0d1b2a] border border-[#00ffcc]/30 rounded-xl p-3 space-y-2">
-                  <p className="font-mono text-[#00ffcc] text-sm">
-                    {liveEmergency.latitude.toFixed(4)},{" "}
-                    {liveEmergency.longitude.toFixed(4)}
-                  </p>
-                  <p className="text-xs text-[#8b9bb8]">
-                    Live SOS received. Proceed immediately.
-                  </p>
-
-                  {arrived ? (
-                    <div className="flex items-center gap-2 text-xs text-green-400 font-bold">
-                      <CheckCircle2 size={14} />
-                      Arrived at scene
-                    </div>
-                  ) : accepted ? (
-                    <button
-                      onClick={() => setArrived(true)}
-                      className="w-full bg-[#00ffcc] text-[#0d1b2a] py-2 rounded-lg text-xs font-bold"
-                    >
-                      MARK ARRIVAL
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setAccepted(true)}
-                      className="w-full bg-[#00ffcc] text-[#0d1b2a] py-2 rounded-lg text-xs font-bold"
-                    >
-                      ACCEPT DISPATCH
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-[#8b9bb8]">No active emergency</p>
-              )}
-            </div>
-          </div>
-        </aside>
-
-        {/* MAP */}
+        {/* MAP / MAIN CONTENT */}
         <main className="flex-1 relative bg-[#0f172a]">
-          {driverLocation && (
-            <Map
-              driverLocation={driverLocation}
-              destination={
-                liveEmergency
-                  ? [liveEmergency.latitude, liveEmergency.longitude]
-                  : null
-              }
-            />
-          )}
+          <Map
+            driverLocation={driverLocation}
+            destination={
+              liveEmergency
+                ? [liveEmergency.latitude, liveEmergency.longitude]
+                : null
+            }
+            isAccepted={sidebarState !== "INITIAL"}
+          />
 
-          {/* MOBILE DISPATCH CARD */}
-          {liveEmergency && !accepted && (
-            <div className="lg:hidden absolute top-4 left-4 right-4 z-50 bg-[#1e2936] border border-[#00ffcc]/30 rounded-2xl p-4 shadow-xl">
-              <div className="flex justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase text-[#00ffcc]">
-                  New Dispatch
-                </span>
-                <button onClick={() => setLiveEmergency(null)}>
-                  <XCircle size={16} />
-                </button>
-              </div>
-
-              <p className="text-sm font-bold mb-1">
-                {liveEmergency.latitude.toFixed(4)},{" "}
-                {liveEmergency.longitude.toFixed(4)}
-              </p>
-
-              <button
-                onClick={() => setAccepted(true)}
-                className="w-full bg-[#00ffcc] text-[#0d1b2a] py-3 rounded-xl text-xs font-bold mt-3"
-              >
-                ACCEPT & GO
-              </button>
-            </div>
-          )}
-
-          {/* FLOATING ACTION */}
-          {accepted && (
-            <button
-              onClick={() => setArrived(true)}
-              className="fixed bottom-6 right-6 bg-[#00ffcc] text-[#0d1b2a] px-6 py-4 rounded-xl font-bold shadow-xl z-50"
-            >
-              MARK ARRIVAL
-            </button>
-          )}
+          {/* NOTIFICATION OVERLAY */}
+          <DispatchNotification
+            visible={showNotification}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+          />
         </main>
       </div>
     </div>
   );
 }
+
