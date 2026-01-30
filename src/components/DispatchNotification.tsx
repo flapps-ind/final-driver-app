@@ -7,12 +7,14 @@ interface DispatchNotificationProps {
     onAccept: () => void;
     onDecline: () => void;
     visible: boolean;
+    data?: any;
 }
 
 const DispatchNotification: React.FC<DispatchNotificationProps> = ({
     onAccept,
     onDecline,
-    visible
+    visible,
+    data
 }) => {
     if (!visible) return null;
 
@@ -36,10 +38,13 @@ const DispatchNotification: React.FC<DispatchNotificationProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                        <h1 className="text-2xl font-bold text-white leading-tight">Medical Emergency</h1>
+                        <h1 className="text-2xl font-bold text-white leading-tight">{data?.type || 'Medical Emergency'}</h1>
                         <div className="flex items-center gap-2 text-[#8b92a5]">
                             <MapPin size={14} className="text-[#00d9b8]" />
-                            <span className="text-xs font-medium">2min @ 12.8725N, 74.8460W</span>
+                            <span className="text-xs font-medium">
+                                {data?.latitude?.toFixed(4)}N, {data?.longitude?.toFixed(4)}W
+                                {data?.address && ` • ${data.address}`}
+                            </span>
                         </div>
                     </div>
 

@@ -12,6 +12,8 @@ import Link from "next/link";
 import useDriverLocation from "@/hooks/useDriverLocation";
 import Sidebar, { SidebarState } from "@/components/Sidebar";
 import DispatchNotification from "@/components/DispatchNotification";
+import { useEmergencyStream } from "@/hooks/useEmergencyStream";
+import { BACKEND_CONFIG } from "@/lib/config";
 
 /* -------------------------------------------------------------------------- */
 /*                             MAP (NO SSR)                                   */
@@ -35,12 +37,6 @@ const Map = dynamic(() => import("@/components/Map"), {
 
 type DriverStatus = "OFF_DUTY" | "AVAILABLE";
 
-interface LiveEmergency {
-  latitude: number;
-  longitude: number;
-  updated_at: string;
-}
-
 /* -------------------------------------------------------------------------- */
 /*                              DASHBOARD PAGE                                */
 /* -------------------------------------------------------------------------- */
@@ -49,7 +45,9 @@ export default function DashboardPage() {
   const [appStatus, setAppStatus] = useState<DriverStatus>("AVAILABLE");
   const [sidebarState, setSidebarState] = useState<SidebarState>("INITIAL");
   const [showNotification, setShowNotification] = useState(false);
-  const [liveEmergency, setLiveEmergency] = useState<LiveEmergency | null>(null);
+
+  // REAL-TIME DATA HOOK
+  const { activeEmergency, recentAlerts, updateStatus } = useEmergencyStream();
 
   /* ---------------------------- DRIVER LOCATION ---------------------------- */
 
@@ -59,51 +57,46 @@ export default function DashboardPage() {
     ? [currentLocation.latitude, currentLocation.longitude]
     : [12.9716, 77.5946]; // Fallback for demo if needed
 
-  /* -------------------------- POLL RECEIVER API --------------------------- */
+  /* -------------------------- NOTIFICATION LOGIC --------------------------- */
 
   useEffect(() => {
-    const fetchEmergency = async () => {
-      // For this task, we want to simulate the flow. 
-      // If we are in INITIAL state and not showing notification, we can trigger one.
-      // In a real app, this would come from the API.
-      try {
-        const res = await fetch("/api/dispatch/alert", { cache: "no-store" });
-        const data = await res.json();
-
-        if (data.location && sidebarState === "INITIAL" && !showNotification) {
-          setLiveEmergency(data.location);
-          setShowNotification(true);
-        }
-      } catch (err) {
-        console.error("Failed to fetch emergency");
-      }
-    };
-
-    fetchEmergency();
-    const interval = setInterval(fetchEmergency, 5000);
-    return () => clearInterval(interval);
-  }, [sidebarState, showNotification]);
+    // Show notification only if we are idle and a new emergency arrives
+    if (activeEmergency && sidebarState === "INITIAL") {
+      setShowNotification(true);
+    }
+  }, [activeEmergency, sidebarState]);
 
   /* ---------------------------- HANDLERS ---------------------------- */
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
+    if (!activeEmergency) return;
+    const success = await updateStatus(BACKEND_CONFIG.API_ENDPOINTS.ACCEPT, activeEmergency.id);
+    if (success) {
+      setShowNotification(false);
+      setSidebarState("ACTIVE");
+    }
+  };
+
+  const handleDecline = async () => {
+    if (!activeEmergency) return;
+    await updateStatus(BACKEND_CONFIG.API_ENDPOINTS.DECLINE, activeEmergency.id);
     setShowNotification(false);
-    setSidebarState("ACTIVE");
-    // In a real app, we would also update the backend
   };
 
-  const handleDecline = () => {
-    setShowNotification(false);
-    setLiveEmergency(null);
+  const handleMarkArrival = async () => {
+    if (!activeEmergency) return;
+    const success = await updateStatus(BACKEND_CONFIG.API_ENDPOINTS.ARRIVE, activeEmergency.id);
+    if (success) {
+      setSidebarState("ARRIVED");
+    }
   };
 
-  const handleMarkArrival = () => {
-    setSidebarState("ARRIVED");
-  };
-
-  const handleComplete = () => {
-    setSidebarState("INITIAL");
-    setLiveEmergency(null);
+  const handleComplete = async () => {
+    if (!activeEmergency) return;
+    const success = await updateStatus(BACKEND_CONFIG.API_ENDPOINTS.COMPLETE, activeEmergency.id);
+    if (success) {
+      setSidebarState("INITIAL");
+    }
   };
 
   const handleBackup = () => console.log("Requesting backup...");
@@ -163,6 +156,8 @@ export default function DashboardPage() {
           onCompleteEmergency={handleComplete}
           onBackup={handleBackup}
           onHospital={handleHospital}
+          activeEmergency={activeEmergency}
+          recentAlerts={recentAlerts}
         />
 
         {/* MAP / MAIN CONTENT */}
@@ -170,8 +165,8 @@ export default function DashboardPage() {
           <Map
             driverLocation={driverLocation}
             destination={
-              liveEmergency
-                ? [liveEmergency.latitude, liveEmergency.longitude]
+              activeEmergency
+                ? [activeEmergency.latitude, activeEmergency.longitude]
                 : null
             }
             isAccepted={sidebarState !== "INITIAL"}
@@ -180,6 +175,7 @@ export default function DashboardPage() {
           {/* NOTIFICATION OVERLAY */}
           <DispatchNotification
             visible={showNotification}
+            data={activeEmergency}
             onAccept={handleAccept}
             onDecline={handleDecline}
           />
