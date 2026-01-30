@@ -14,6 +14,8 @@ import {
   Navigation,
   Bell,
   Power,
+  Search,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -55,6 +57,38 @@ export default function DashboardPage() {
   const [emergency, setEmergency] = useState<Emergency | null>(null);
   const [showDispatchAlert, setShowDispatchAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  /* ---------------------------- SEARCH LOGIC ------------------------------- */
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<[number, number] | null>(null);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Check if it's coordinates (lat, lon)
+      const coordMatch = searchQuery.match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+      if (coordMatch) {
+        setSearchResult([parseFloat(coordMatch[1]), parseFloat(coordMatch[2])]);
+      } else {
+        // Use Nominatim (OSM) for free geocoding
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setSearchResult([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        } else {
+          alert("Location not found");
+        }
+      }
+    } catch (error) {
+      console.error("Search failed:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   /* ---------------------------- DRIVER LOCATION ---------------------------- */
 
@@ -365,14 +399,29 @@ export default function DashboardPage() {
         <main className="flex-1 relative overflow-hidden bg-[#0f172a]">
           {/* Map Search Bar */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-full max-w-md px-4">
-            <div className="bg-[#1a2332]/80 backdrop-blur-lg border border-white/5 rounded-xl px-4 py-2 flex items-center gap-3 shadow-2xl">
-              <Navigation size={16} className="text-muted-foreground rotate-45" />
+            <form onSubmit={handleSearch} className="bg-[#1a2332]/80 backdrop-blur-lg border border-white/5 rounded-xl px-4 py-2 flex items-center gap-3 shadow-2xl">
+              {isSearching ? (
+                <Loader2 size={16} className="text-[#00d9b5] animate-spin" />
+              ) : (
+                <Search size={16} className="text-muted-foreground" />
+              )}
               <input
                 type="text"
-                placeholder="Search coordinates or location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search coordinates (lat, lon) or location..."
                 className="bg-transparent border-none outline-none text-xs w-full text-white placeholder:text-muted-foreground/50 font-medium"
               />
-            </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(""); setSearchResult(null); }}
+                  className="text-muted-foreground hover:text-white"
+                >
+                  <XCircle size={14} />
+                </button>
+              )}
+            </form>
           </div>
           {/* MAP LAYER */}
           <div className="absolute inset-0 z-0">
@@ -380,6 +429,7 @@ export default function DashboardPage() {
               <Map
                 driverLocation={driverLocation}
                 destination={emergency?.coords || null}
+                searchLocation={searchResult}
               />
             )}
           </div>

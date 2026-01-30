@@ -84,6 +84,27 @@ const DestinationIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
+const SearchIcon = L.divIcon({
+  className: "",
+  html: `
+    <div style="
+      width:24px;
+      height:24px;
+      background:#6366f1;
+      border:2px solid white;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 15px rgba(99,102,241,0.4);
+    ">
+      <div style="width:8px; height:8px; background:white; border-radius:50%;"></div>
+    </div>
+  `,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+});
+
 /* -------------------------------------------------------------------------- */
 /*                                   TYPES                                    */
 /* -------------------------------------------------------------------------- */
@@ -91,6 +112,7 @@ const DestinationIcon = L.divIcon({
 interface MapProps {
   driverLocation: [number, number];
   destination?: [number, number] | null;
+  searchLocation?: [number, number] | null;
   routeCoords?: [number, number][];
 }
 
@@ -100,19 +122,16 @@ interface MapProps {
 
 const RecenterMap = ({ coords }: { coords: [number, number] }) => {
   const map = useMap();
-  const hasCentered = useRef(false);
 
   useEffect(() => {
     if (
-      hasCentered.current ||
       !Number.isFinite(coords[0]) ||
       !Number.isFinite(coords[1])
     ) {
       return;
     }
 
-    map.setView(coords, 15, { animate: false });
-    hasCentered.current = true;
+    map.setView(coords, 15);
   }, [coords, map]);
 
   return null;
@@ -125,6 +144,7 @@ const RecenterMap = ({ coords }: { coords: [number, number] }) => {
 const MapComponent = ({
   driverLocation,
   destination,
+  searchLocation,
   routeCoords,
 }: MapProps) => {
   return (
@@ -136,7 +156,7 @@ const MapComponent = ({
       className="w-full h-full"
       style={{ background: "#0f172a" }}
     >
-      <RecenterMap coords={driverLocation} />
+      <RecenterMap coords={searchLocation || destination || driverLocation} />
 
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
@@ -154,6 +174,13 @@ const MapComponent = ({
       {destination && (
         <Marker position={destination} icon={DestinationIcon}>
           <Popup>Emergency Location</Popup>
+        </Marker>
+      )}
+
+      {/* Search Result */}
+      {searchLocation && (
+        <Marker position={searchLocation} icon={SearchIcon}>
+          <Popup>Search Result</Popup>
         </Marker>
       )}
 
